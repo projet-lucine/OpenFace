@@ -138,15 +138,41 @@ boost::python::dict load_folder(string path)
     auto aus_intensity = face_analyser.GetCurrentAUsReg();
     auto aus_presence = face_analyser.GetCurrentAUsClass();
 
+    csv["confidence"].push_back(face_model.detection_certainty);
 
 		for (auto au : aus_presence)
 		{
-      csv[au.first + "_r"].push_back(au.second);
+      csv[au.first + "_presence"].push_back(au.second);
 		}
+
 		for (auto au : aus_intensity)
 		{
-      csv[au.first + "_c"].push_back(au.second);
+      csv[au.first + "_intensity"].push_back(au.second);
 		}
+
+		for (auto lm : face_model.detected_landmarks)
+		{
+      csv["2d_points"].push_back(lm);
+		}
+
+		for (auto lm : face_model.GetShape(sequence_reader.fx, sequence_reader.fy, sequence_reader.cx, sequence_reader.cy))
+		{
+      csv["3d_points"].push_back(lm);
+		}
+
+    csv["gaze_direction_0_x"].push_back(gazeDirection0.x);
+    csv["gaze_direction_0_y"].push_back(gazeDirection0.y);
+    csv["gaze_direction_0_z"].push_back(gazeDirection0.z);
+
+    csv["gaze_direction_1_x"].push_back(gazeDirection1.x);
+    csv["gaze_direction_1_y"].push_back(gazeDirection1.y);
+    csv["gaze_direction_1_z"].push_back(gazeDirection1.z);
+
+
+    csv["gaze_angle_0"].push_back(gazeAngle[0]);
+    csv["gaze_angle_1"].push_back(gazeAngle[1]);
+
+
 
     captured_image = sequence_reader.GetNextFrame();
 
