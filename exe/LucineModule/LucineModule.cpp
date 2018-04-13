@@ -30,10 +30,8 @@ static void printErrorAndAbort( const std::string & error )
 using namespace std;
 
 // Convert a vector into a py list
-template <class T>
-inline
-boost::python::list std_vector_to_py_list(std::vector<T> vector) {
-  typename std::vector<T>::iterator iter;
+boost::python::list std_vector_to_py_list(std::vector<float> vector) {
+  typename std::vector<float>::iterator iter;
   boost::python::list list;
   for (iter = vector.begin(); iter != vector.end(); ++iter) {
     list.append(*iter);
@@ -42,12 +40,11 @@ boost::python::list std_vector_to_py_list(std::vector<T> vector) {
 }
 
 // Converts a C++ map to a python dict
-template <class K, class V>
-boost::python::dict toPythonDict(std::map<K, V> map) {
-    typename std::map<K, V>::iterator iter;
+boost::python::dict toPythonDict(std::map<std::string, vector<float>> map) {
+    typename std::map<std::string, vector<float>>::iterator iter;
 	boost::python::dict dictionary;
 	for (iter = map.begin(); iter != map.end(); ++iter) {
-		dictionary[iter->first] = std_vector_to_py_list(iter->second);
+		dictionary[iter->first.c_str()] = std_vector_to_py_list(iter->second);
 	}
 	return dictionary;
 }
@@ -57,7 +54,7 @@ boost::python::dict toPythonDict(std::map<K, V> map) {
 boost::python::dict load_folder(string path)
 {
   vector<string> arguments;
-  std::map<string, vector<double>> csv;
+  std::map<std::string, vector<float>> csv;
 
 
   arguments.push_back("./FeatureExtraction");
@@ -149,16 +146,19 @@ boost::python::dict load_folder(string path)
 		{
       csv[au.first + "_intensity"].push_back(au.second);
 		}
+    auto lms = face_model.detected_landmarks;
+    auto lms3d = face_model.GetShape(sequence_reader.fx, sequence_reader.fy, sequence_reader.cx, sequence_reader.cy);
+    int nb_lms = (int)lms.rows /2;
 
-		for (auto lm : face_model.detected_landmarks)
-		{
-      csv["2d_points"].push_back(lm);
-		}
-
-		for (auto lm : face_model.GetShape(sequence_reader.fx, sequence_reader.fy, sequence_reader.cx, sequence_reader.cy))
-		{
-      csv["3d_points"].push_back(lm);
-		}
+    for (int i = 0; i < nb_lms; ++i)
+    {
+       auto id = std::to_string(i);
+       csv["x_" + id].push_back(*lms[i]);
+       csv["y_" + id].push_back(*lms[i+nb_lms]);
+       csv["X_" + id].push_back(*lms3d[i]);
+       csv["Y_" + id].push_back(*lms3d[i+nb_lms]);
+       csv["Z_" + id].push_back(*lms3d[i+(2*nb_lms)]);
+    }
 
     csv["gaze_direction_0_x"].push_back(gazeDirection0.x);
     csv["gaze_direction_0_y"].push_back(gazeDirection0.y);
@@ -169,13 +169,45 @@ boost::python::dict load_folder(string path)
     csv["gaze_direction_1_z"].push_back(gazeDirection1.z);
 
 
-    csv["gaze_angle_0"].push_back(gazeAngle[0]);
-    csv["gaze_angle_1"].push_back(gazeAngle[1]);
+    csv["gaze_angle_x"].push_back(gazeAngle[0]);
+    csv["gaze_angle_y"].push_back(gazeAngle[1]);
 
+    auto eye_2d = LandmarkDetector::CalculateAllEyeLandmarks(face_model);
+
+    int i =0;
+		for (auto eye_lmk : eye_2d)
+		{
+       auto id = std::to_string(i);
+			 csv["2d_eye_lmk_x_" + id].push_back(eye_lmk.x);
+			 csv["2d_eye_lmk_y_" + id].push_back(eye_lmk.y);
+       i++;
+		}
+
+
+
+    auto eye_3d = LandmarkDetector::Calculate3DEyeLandmarks(face_model,sequence_reader.fx,
+        sequence_reader.fy, sequence_reader.cx, sequence_reader.cy);
+
+    i =0;
+		for (auto eye_lmk : eye_3d)
+		{
+       auto id = std::to_string(i);
+			 csv["3d_eye_lmk_x_" + id].push_back(eye_lmk.x);
+			 csv["3d_eye_lmk_y_" + id].push_back(eye_lmk.y);
+			 csv["3d_eye_lmk_z_" + id].push_back(eye_lmk.z);
+       i++;
+		}
+
+    csv["pose_Tx"].push_back(pose_estimate[0]);
+    csv["pose_Ty"].push_back(pose_estimate[1]);
+    csv["pose_Tz"].push_back(pose_estimate[2]);
+
+    csv["pose_Rx"].push_back(pose_estimate[3]);
+    csv["pose_Ry"].push_back(pose_estimate[4]);
+    csv["pose_Rz"].push_back(pose_estimate[5]);
 
 
     captured_image = sequence_reader.GetNextFrame();
-
   }
 
   // Reset the models for the next video
