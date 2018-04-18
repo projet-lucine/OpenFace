@@ -9,6 +9,8 @@
 #include <SequenceCapture.h>
 #include <Visualizer.h>
 #include <VisualizationUtils.h>
+#include <sstream>
+#include <iomanip>
 
 #define INFO_STREAM( stream )                   \
   std::cout << stream << std::endl
@@ -30,18 +32,18 @@ static void printErrorAndAbort( const std::string & error )
 using namespace std;
 
 // Convert a vector into a py list
-boost::python::list std_vector_to_py_list(std::vector<float> vector) {
-  typename std::vector<float>::iterator iter;
+boost::python::list std_vector_to_py_list(std::vector<std::string> vector) {
+  typename std::vector<std::string>::iterator iter;
   boost::python::list list;
   for (iter = vector.begin(); iter != vector.end(); ++iter) {
-    list.append(*iter);
+    list.append(iter->c_str());
   }
   return list;
 }
 
 // Converts a C++ map to a python dict
-boost::python::dict toPythonDict(std::map<std::string, vector<float>> map) {
-    typename std::map<std::string, vector<float>>::iterator iter;
+boost::python::dict toPythonDict(std::map<std::string, vector<std::string>> map) {
+  typename std::map<std::string, vector<std::string>>::iterator iter;
 	boost::python::dict dictionary;
 	for (iter = map.begin(); iter != map.end(); ++iter) {
 		dictionary[iter->first.c_str()] = std_vector_to_py_list(iter->second);
@@ -49,12 +51,18 @@ boost::python::dict toPythonDict(std::map<std::string, vector<float>> map) {
 	return dictionary;
 }
 
+std::string leading_zeros(int i){
+  std::stringstream ss;
+  ss << std::setw(3) << std::setfill('0') << i;
+  std::string s = ss.str();
+  return s;
+}
 
 
 boost::python::dict load_folder(string path)
 {
   vector<string> arguments;
-  std::map<std::string, vector<float>> csv;
+  std::map<std::string, vector<std::string>> csv;
 
 
   arguments.push_back("./FeatureExtraction");
@@ -135,16 +143,16 @@ boost::python::dict load_folder(string path)
     auto aus_intensity = face_analyser.GetCurrentAUsReg();
     auto aus_presence = face_analyser.GetCurrentAUsClass();
 
-    csv["confidence"].push_back(face_model.detection_certainty);
+    csv["confidence"].push_back(to_string((float)face_model.detection_certainty));
 
 		for (auto au : aus_presence)
 		{
-      csv[au.first + "_presence"].push_back(au.second);
+      csv[au.first + "_presence"].push_back(to_string((float)au.second));
 		}
 
 		for (auto au : aus_intensity)
 		{
-      csv[au.first + "_intensity"].push_back(au.second);
+      csv[au.first + "_intensity"].push_back(to_string((float)au.second));
 		}
     auto lms = face_model.detected_landmarks;
     auto lms3d = face_model.GetShape(sequence_reader.fx, sequence_reader.fy, sequence_reader.cx, sequence_reader.cy);
@@ -152,34 +160,34 @@ boost::python::dict load_folder(string path)
 
     for (int i = 0; i < nb_lms; ++i)
     {
-       auto id = std::to_string(i);
-       csv["x_" + id].push_back(*lms[i]);
-       csv["y_" + id].push_back(*lms[i+nb_lms]);
-       csv["X_" + id].push_back(*lms3d[i]);
-       csv["Y_" + id].push_back(*lms3d[i+nb_lms]);
-       csv["Z_" + id].push_back(*lms3d[i+(2*nb_lms)]);
+       auto id = leading_zeros(i);
+       csv["x_" + id].push_back(to_string((float)*lms[i]));
+       csv["y_" + id].push_back(to_string((float)*lms[i+nb_lms]));
+       csv["X_" + id].push_back(to_string((float)*lms3d[i]));
+       csv["Y_" + id].push_back(to_string((float)*lms3d[i+nb_lms]));
+       csv["Z_" + id].push_back(to_string((float)*lms3d[i+(2*nb_lms)]));
     }
 
-    csv["gaze_direction_0_x"].push_back(gazeDirection0.x);
-    csv["gaze_direction_0_y"].push_back(gazeDirection0.y);
-    csv["gaze_direction_0_z"].push_back(gazeDirection0.z);
+    csv["gaze_direction_0_x"].push_back(to_string((float)gazeDirection0.x));
+    csv["gaze_direction_0_y"].push_back(to_string((float)gazeDirection0.y));
+    csv["gaze_direction_0_z"].push_back(to_string((float)gazeDirection0.z));
 
-    csv["gaze_direction_1_x"].push_back(gazeDirection1.x);
-    csv["gaze_direction_1_y"].push_back(gazeDirection1.y);
-    csv["gaze_direction_1_z"].push_back(gazeDirection1.z);
+    csv["gaze_direction_1_x"].push_back(to_string((float)gazeDirection1.x));
+    csv["gaze_direction_1_y"].push_back(to_string((float)gazeDirection1.y));
+    csv["gaze_direction_1_z"].push_back(to_string((float)gazeDirection1.z));
 
 
-    csv["gaze_angle_x"].push_back(gazeAngle[0]);
-    csv["gaze_angle_y"].push_back(gazeAngle[1]);
+    csv["gaze_angle_x"].push_back(to_string((float)gazeAngle[0]));
+    csv["gaze_angle_y"].push_back(to_string((float)gazeAngle[1]));
 
     auto eye_2d = LandmarkDetector::CalculateAllEyeLandmarks(face_model);
 
     int i =0;
 		for (auto eye_lmk : eye_2d)
 		{
-       auto id = std::to_string(i);
-			 csv["2d_eye_lmk_x_" + id].push_back(eye_lmk.x);
-			 csv["2d_eye_lmk_y_" + id].push_back(eye_lmk.y);
+       auto id = leading_zeros(i);
+			 csv["2d_eye_lmk_x_" + id].push_back(to_string((float)eye_lmk.x));
+			 csv["2d_eye_lmk_y_" + id].push_back(to_string((float)eye_lmk.y));
        i++;
 		}
 
@@ -191,20 +199,20 @@ boost::python::dict load_folder(string path)
     i =0;
 		for (auto eye_lmk : eye_3d)
 		{
-       auto id = std::to_string(i);
-			 csv["3d_eye_lmk_x_" + id].push_back(eye_lmk.x);
-			 csv["3d_eye_lmk_y_" + id].push_back(eye_lmk.y);
-			 csv["3d_eye_lmk_z_" + id].push_back(eye_lmk.z);
+       auto id = leading_zeros(i);
+			 csv["3d_eye_lmk_x_" + id].push_back(to_string((float)eye_lmk.x));
+			 csv["3d_eye_lmk_y_" + id].push_back(to_string((float)eye_lmk.y));
+			 csv["3d_eye_lmk_z_" + id].push_back(to_string((float)eye_lmk.z));
        i++;
 		}
 
-    csv["pose_Tx"].push_back(pose_estimate[0]);
-    csv["pose_Ty"].push_back(pose_estimate[1]);
-    csv["pose_Tz"].push_back(pose_estimate[2]);
+    csv["pose_Tx"].push_back(to_string((float)pose_estimate[0]));
+    csv["pose_Ty"].push_back(to_string((float)pose_estimate[1]));
+    csv["pose_Tz"].push_back(to_string((float)pose_estimate[2]));
 
-    csv["pose_Rx"].push_back(pose_estimate[3]);
-    csv["pose_Ry"].push_back(pose_estimate[4]);
-    csv["pose_Rz"].push_back(pose_estimate[5]);
+    csv["pose_Rx"].push_back(to_string((float)pose_estimate[3]));
+    csv["pose_Ry"].push_back(to_string((float)pose_estimate[4]));
+    csv["pose_Rz"].push_back(to_string((float)pose_estimate[5]));
 
 
     captured_image = sequence_reader.GetNextFrame();
