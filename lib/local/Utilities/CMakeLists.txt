@@ -27,5 +27,9 @@ include_directories(${UTILITIES_SOURCE_DIR}/include)
 
 add_library( Utilities ${SOURCE} ${HEADERS})
 
+set_target_properties(Utilities
+                      PROPERTIES
+                      LIBRARY_OUTPUT_DIRECTORY ON)
+
 install (TARGETS Utilities DESTINATION lib)
 install (FILES ${HEADERS} DESTINATION include/OpenFace)
